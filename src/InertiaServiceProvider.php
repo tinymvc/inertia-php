@@ -26,6 +26,12 @@ class InertiaServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(Inertia::class);
+
+        $this->app->make(Router::class)
+            ->macro(
+                'inertia',
+                fn(string $path, string $component, array $props = []) => new Route($path, callback: fn() => inertia($component, $props))
+            );
     }
 
     /**
@@ -39,12 +45,6 @@ class InertiaServiceProvider extends ServiceProvider
             ->directive(
                 'inertia',
                 fn() => '<?= \Inertia\Facades\Inertia::renderRootElement($page ?? \'{}\'); ?>'
-            );
-
-        $this->app->make(Router::class)
-            ->macro(
-                'inertia',
-                fn(string $path, string $component, array $props = []) => new Route($path, callback: fn() => inertia($component, $props))
             );
     }
 }
