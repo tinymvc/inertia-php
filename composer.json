@@ -1,0 +1,19 @@
+{
+    "name": "tinymvc/inertia-php",
+    "description": "A simple and lightweight PHP library for building Inertia.js applications.",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Inertia\\": "src/"
+        },
+        "files": [
+            "./src/helpers.php"
+        ]
+    },
+    "authors": [
+        {
+            "name": "Shahin Moyshan",
+            "email": "shahin.moyshan2@gmail.com"
+        }
+    ]
+}
