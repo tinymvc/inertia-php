@@ -22,15 +22,19 @@ use Inertia\Inertia as BaseInertia;
  * @method static \Spark\Http\Response location(string $url)
  * @method static \Spark\Http\Response forceRefresh()
  * @method static \Inertia\Props\LazyProp lazy(\Closure $callback)
+ * @method static \Inertia\Props\LazyProp optional(\Closure $callback)
  * @method static \Inertia\Props\DeferredProp defer(\Closure $callback, string $group = 'default')
  * @method static \Inertia\Props\MergeProp merge(\Closure $callback, ?string $matchBy = null)
  * @method static \Inertia\Props\MergeProp prepend(\Closure $callback, ?string $matchBy = null)
  * @method static \Inertia\Props\MergeProp deepMerge(\Closure $callback, ?string $matchBy = null)
  * @method static \Inertia\Props\OnceProp once(\Closure $callback, ?string $key = null, ?int $expiresAt = null)
+ * @method static \Inertia\Props\OnceProp shareOnce(string $key, Closure $callback)
  * @method static \Inertia\Props\AlwaysProp always(\Closure $callback)
  * @method static \Inertia\Inertia withEncryptedHistory(bool $encrypt = true)
  * @method static \Inertia\Inertia withClearedHistory(bool $clear = true)
  * @method static \Spark\Contracts\Support\Htmlable renderRootElement(string|array $page = '{}')
+ * @method static mixed getShared(?string $key = null, mixed $default = null)
+ * @method static void flushShared()
  * 
  * @package Spark\Facades
  * 
