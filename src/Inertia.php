@@ -357,8 +357,30 @@ class Inertia implements InertiaAdapterContract
             $props = $props->toArray();
         }
 
+        // Include validation errors from the session in the shared data
+        $errors = $this->request->errors()->all(merge: false);
+        if (!empty($errors)) {
+            $errors = collect($errors)
+                ->mapWithKeys(fn($messages, $field) => [
+                    $field => is_array($messages) ? $messages[0] : $messages
+                ])
+                ->all();
+        }
+
+        // Include flash messages from the session in the shared data
+        $flash = array_filter([
+            'info' => $this->request->session()->getFlash('info'),
+            'success' => $this->request->session()->getFlash('success'),
+            'error' => $this->request->session()->getFlash('error'),
+        ]);
+
+        // Include authenticated user information in the shared data
+        $auth = [
+            'user' => $this->request->user(...),
+        ];
+
         // Merge shared props with component props (ensure errors prop exists)
-        $props = ['errors' => (object) [], ...self::$shared, ...$props];
+        $props = ['errors' => (object) $errors, 'flash' => (object) $flash, 'auth' => $auth, ...self::$shared, ...$props];
 
         // Check if this is an Inertia request
         $isInertiaRequest = (bool) $this->request->header('X-Inertia');
@@ -405,7 +427,7 @@ class Inertia implements InertiaAdapterContract
 
         // Handle version mismatch - force full page reload (only for GET requests)
         // Per protocol: 409 responses are only sent for GET requests
-        if ($this->hasVersionMismatch() && strtoupper($this->request->getMethod()) === 'GET') {
+        if ($this->hasVersionMismatch() && $this->request->isGet()) {
             return $this->forceRefresh();
         }
 
@@ -607,7 +629,7 @@ class Inertia implements InertiaAdapterContract
 
             // For partial reloads with X-Inertia-Partial-Data, only include requested props
             // But always include AlwaysProp instances and 'errors' prop
-            $isAlwaysIncluded = $value instanceof AlwaysProp || $key === 'errors';
+            $isAlwaysIncluded = $value instanceof AlwaysProp || in_array($key, ['errors', 'flash']);
             if ($isPartialReload && !empty($partialOnly) && !in_array($key, $partialOnly) && !$isAlwaysIncluded) {
                 continue;
             }
