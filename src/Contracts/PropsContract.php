@@ -5,7 +5,7 @@ namespace Inertia\Contracts;
 /**
  * Interface PropsContract
  *
- * This contract defines the structure for props that can be resolved to a value.
+ * This contract defines the basic structure for props that can be resolved to a value.
  */
 interface PropsContract
 {
