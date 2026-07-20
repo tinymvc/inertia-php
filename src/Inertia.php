@@ -38,6 +38,14 @@ class Inertia implements InertiaAdapterContract
     protected string $rootView = 'app';
 
     /**
+     * The build directory where the compiled assets are located. This is used to generate the version string
+     * for cache busting. The default is 'build/', but it can be customized if your assets are located elsewhere.
+     *
+     * @var string
+     */
+    protected string $build = 'build';
+
+    /**
      * The version string used for cache busting. This can be set to a value or generated dynamically
      * based on the component and props to ensure that clients receive the latest version of the component.
      *
@@ -84,8 +92,24 @@ class Inertia implements InertiaAdapterContract
      */
     public function __construct(protected Request $request)
     {
+        $this->setBuildDirectory($this->build); // Set the build directory and generate version based on manifest file
+    }
+
+    /**
+     * Set the build directory for locating compiled assets.
+     *
+     * @param string $build The build directory path.
+     * @return void
+     */
+    public function setBuildDirectory(string $build): void
+    {
+        $this->build = $build;
+
         // Generate version based on manifest file content for cache busting
-        $manifestPath = root_dir('public/build/.vite/manifest.json');
+        $manifestPath = root_dir(
+            sprintf('public/%s/.vite/manifest.json', $this->build)
+        );
+
         if (is_file($manifestPath)) {
             $this->version = md5_file($manifestPath);
         }
@@ -710,11 +734,20 @@ class Inertia implements InertiaAdapterContract
     protected function resolveValue(mixed $value): mixed
     {
         // If it's a Stringable or specific object, cast to string
-        if (
-            $value instanceof \Spark\Url ||
-            $value instanceof \Spark\Utils\Carbon
-        ) {
-            return (string) $value;
+        if ($value instanceof \Spark\Url) {
+            return $value->getUrl();
+        }
+
+        if ($value instanceof \Spark\Carbon) {
+            return $value->toISOUtcString();
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format(\DateTimeInterface::ATOM);
+        }
+
+        if ($value instanceof Closure) {
+            return $this->resolveValue($value()); // Call the closure and return its result
         }
 
         if ($value instanceof Arrayable) {

@@ -3,6 +3,8 @@
 namespace Inertia\Props;
 
 use Closure;
+use function is_int;
+use function is_string;
 
 /**
  * MergeProp
@@ -166,7 +168,7 @@ class MergeProp extends BaseProp
             if (is_string($paths)) {
                 $this->prependPaths[] = $paths;
             } else {
-                $this->prependPaths = array_merge($this->prependPaths, $paths);
+                $this->prependPaths = [...$this->prependPaths, ...$paths];
             }
         }
         return $this;
