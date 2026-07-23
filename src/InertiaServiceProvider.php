@@ -3,8 +3,8 @@
 namespace Inertia;
 
 use Spark\Foundation\Providers\ServiceProvider;
-use Spark\Routing\Route;
-use Spark\Routing\Router;
+use Spark\Http\Routing\Route;
+use Spark\Http\Routing\Router;
 use Spark\View\Blade;
 
 /**
