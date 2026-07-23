@@ -2,13 +2,17 @@
 
 namespace Inertia\Contracts;
 
-use Closure;
+use BackedEnum;
 use Inertia\Props\AlwaysProp;
 use Inertia\Props\DeferredProp;
-use Inertia\Props\LazyProp;
 use Inertia\Props\MergeProp;
 use Inertia\Props\OnceProp;
+use Inertia\Props\OptionalProp;
+use Inertia\Props\ScrollProp;
+use Inertia\ProvidesInertiaProperties;
+use Spark\Contracts\Support\Arrayable;
 use Spark\Http\Response;
+use UnitEnum;
 
 /**
  * Interface InertiaAdapterContract
@@ -23,11 +27,13 @@ interface InertiaAdapterContract
     /**
      * Render an Inertia.js component.
      *
-     * @param string $component The name of the Inertia.js component to render.
-     * @param array $props An associative array of props to pass to the component.
-     * @return mixed The rendered component, which can be a Response or any other type depending on the implementation.
+     * @param BackedEnum|UnitEnum|string $component The Inertia page component.
+     * @param Arrayable|ProvidesInertiaProperties|array $props Page props.
      */
-    public function render(string $component, array $props = []): mixed;
+    public function render(
+        BackedEnum|UnitEnum|string $component,
+        Arrayable|ProvidesInertiaProperties|array $props = []
+    ): Response;
 
     /**
      * Redirect to a given URL.
@@ -39,54 +45,61 @@ interface InertiaAdapterContract
     public function redirect(string $url, int $status = 302): Response;
 
     /**
-     * Create a lazy prop that is only evaluated during partial reloads.
-     *
-     * @param Closure $callback The callback that returns the prop value.
-     * @return LazyProp The lazy prop instance.
+     * Create a prop that is only evaluated when explicitly requested.
      */
-    public static function lazy(Closure $callback): LazyProp;
+    public static function optional(callable $callback): OptionalProp;
 
     /**
      * Create a deferred prop that is loaded after the initial page render.
      *
-     * @param Closure $callback The callback that returns the prop value.
+     * @param callable $callback The callback that returns the prop value.
      * @param string $group The group name for batching deferred props.
+     * @param bool $rescue Whether resolution exceptions should be rescued.
      * @return DeferredProp The deferred prop instance.
      */
-    public static function defer(Closure $callback, string $group = 'default'): DeferredProp;
+    public static function defer(
+        callable $callback,
+        string $group = 'default',
+        bool $rescue = false
+    ): DeferredProp;
 
     /**
      * Create a merge prop that appends data to existing client-side data.
      *
-     * @param Closure $callback The callback that returns the prop value.
-     * @param string|null $matchBy Optional key path for matching items during merge.
+     * @param mixed $value The prop value or lazy callback.
      * @return MergeProp The merge prop instance.
      */
-    public static function merge(Closure $callback, ?string $matchBy = null): MergeProp;
+    public static function merge(mixed $value): MergeProp;
 
     /**
      * Create a once prop that is only evaluated and sent once.
      *
-     * @param Closure $callback The callback that returns the prop value.
-     * @param string|null $key Optional custom key for tracking across pages.
-     * @param int|null $expiresAt Optional expiration timestamp in milliseconds.
+     * @param callable $callback The callback that returns the prop value.
      * @return OnceProp The once prop instance.
      */
-    public static function once(Closure $callback, ?string $key = null, ?int $expiresAt = null): OnceProp;
+    public static function once(callable $callback): OnceProp;
 
     /**
      * Create an always prop that is always included even in partial reloads.
      *
-     * @param Closure $callback The callback that returns the prop value.
+     * @param mixed $value The prop value or lazy callback.
      * @return AlwaysProp The always prop instance.
      */
-    public static function always(Closure $callback): AlwaysProp;
+    public static function always(mixed $value): AlwaysProp;
+
+    public static function scroll(
+        mixed $value,
+        string $wrapper = 'data',
+        ProvidesScrollMetadata|callable|null $metadata = null
+    ): ScrollProp;
 
     /**
      * Share data across all Inertia responses.
      *
-     * @param array $data An associative array of data to share across all Inertia responses.
-     * @return void
+     * @param array|string|Arrayable|ProvidesInertiaProperties $key Shared props or a key.
      */
-    public static function share(array $data): void;
+    public static function share(
+        array|string|Arrayable|ProvidesInertiaProperties $key,
+        mixed $value = null
+    ): void;
 }

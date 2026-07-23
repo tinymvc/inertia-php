@@ -10,7 +10,7 @@ namespace Inertia\Props;
  * flash messages, error counts, or notification badges.
  *
  * @author Shahin Moyshan <shahin.moyshan2@gmail.com>
- * @link https://inertiajs.com/docs/v2/data-props/partial-reloads
+ * @link https://inertiajs.com/docs/v3/data-props/partial-reloads
  */
 class AlwaysProp extends BaseProp
 {

@@ -1,7 +1,12 @@
 {
     "name": "tinymvc/inertia-php",
-    "description": "A simple and lightweight PHP library for building Inertia.js applications.",
+    "description": "An Inertia.js v3 server adapter for the TinyMVC framework.",
     "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*",
+        "tinymvc/tinycore": "^3.0"
+    },
     "autoload": {
         "psr-4": {
             "Inertia\\": "src/"

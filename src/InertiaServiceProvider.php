@@ -6,6 +6,7 @@ use Spark\Foundation\Providers\ServiceProvider;
 use Spark\Http\Routing\Route;
 use Spark\Http\Routing\Router;
 use Spark\View\Blade;
+use function sprintf;
 
 /**
  * The Inertia service provider.
@@ -44,7 +45,10 @@ class InertiaServiceProvider extends ServiceProvider
         $this->app->make(Blade::class)
             ->directive(
                 'inertia',
-                fn() => '<?= \Inertia\Facades\Inertia::renderRootElement($page ?? \'{}\'); ?>'
+                fn(string $expression = '') => sprintf(
+                    '<?= \Inertia\Facades\Inertia::renderRootElement($page ?? \'{}\'%s); ?>',
+                    $expression === '' ? '' : ", {$expression}"
+                )
             );
     }
 }
