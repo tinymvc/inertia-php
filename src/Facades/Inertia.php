@@ -19,7 +19,6 @@ use Inertia\Inertia as BaseInertia;
  * @method static void version(\Closure|string|int|null $version)
  * @method static string getVersion()
  * @method static void share(array|string|\Spark\Contracts\Support\Arrayable|\Inertia\ProvidesInertiaProperties $key, mixed $value = null)
- * @method static void composer(string|array $components, callable $composer)
  * @method static \Spark\Http\Response render(\BackedEnum|\UnitEnum|string $component, \Spark\Contracts\Support\Arrayable|\Inertia\ProvidesInertiaProperties|array $props = [])
  * @method static \Spark\Http\Response redirect(string $url, int $status = 302)
  * @method static \Spark\Http\Response back(int $status = 302)

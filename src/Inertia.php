@@ -47,8 +47,6 @@ class Inertia implements InertiaAdapterContract
 
     protected static array $shared = [];
 
-    protected static array $composers = [];
-
     protected bool $encryptHistory = false;
 
     protected bool $clearHistory = false;
@@ -161,14 +159,6 @@ class Inertia implements InertiaAdapterContract
     public static function flushShared(): void
     {
         self::$shared = [];
-        self::$composers = [];
-    }
-
-    public static function composer(string|array $components, callable $composer): void
-    {
-        foreach ((array) $components as $component) {
-            self::$composers[$component][] = $composer;
-        }
     }
 
     public static function optional(callable $callback): OptionalProp
@@ -297,8 +287,6 @@ class Inertia implements InertiaAdapterContract
             $component instanceof UnitEnum => $component->name,
             default => $component,
         };
-
-        $this->runComposers($component);
 
         if ($props instanceof Arrayable) {
             $props = $props->toArray();
@@ -499,16 +487,5 @@ class Inertia implements InertiaAdapterContract
         );
 
         return $urlRoot !== $this->request->getRootUrl();
-    }
-
-    protected function runComposers(string $component): void
-    {
-        foreach (self::$composers[$component] ?? [] as $composer) {
-            $composer($this);
-        }
-
-        foreach (self::$composers['*'] ?? [] as $composer) {
-            $composer($this);
-        }
     }
 }
