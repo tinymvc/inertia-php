@@ -12,6 +12,7 @@ use Inertia\Props\OptionalProp;
 use Inertia\Props\ScrollProp;
 use Spark\Contracts\Support\Arrayable;
 use Spark\Http\Request;
+use Spark\Http\Resources\JsonResource;
 use Throwable;
 use function in_array;
 use function is_array;
@@ -211,8 +212,8 @@ class PropsResolver
         try {
             if ($value instanceof BaseProp) {
                 $value = $value->resolve();
-            } elseif (is_object($value) && is_callable($value)) {
-                $value = call($value);
+            } elseif ($value instanceof Closure) {
+                $value = $value();
             }
 
             if ($value instanceof ProvidesInertiaProperty) {
@@ -221,23 +222,7 @@ class PropsResolver
                 );
             }
 
-            if ($value instanceof \Spark\Url) {
-                return $value->getUrl();
-            }
-
-            if ($value instanceof \Spark\Carbon) {
-                return $value->toISOUtcString();
-            }
-
-            if ($value instanceof \DateTimeInterface) {
-                return $value->format(\DateTimeInterface::ATOM);
-            }
-
-            if ($value instanceof Arrayable) {
-                $value = $value->toArray();
-            }
-
-            return $value;
+            return JsonResource::normalize($value);
         } catch (Throwable $exception) {
             if (!$shouldRescue) {
                 throw $exception;
@@ -248,6 +233,7 @@ class PropsResolver
                 $path,
                 $exception->getMessage()
             ));
+
             $this->rescuedProps[] = $path;
 
             return null;
@@ -409,7 +395,7 @@ class PropsResolver
                 }
 
                 if (isset($current[$segment]) && $current[$segment] instanceof Closure) {
-                    $current[$segment] = call($current[$segment]);
+                    $current[$segment] = $current[$segment]();
                 }
 
                 if (isset($current[$segment]) && $current[$segment] instanceof Arrayable) {

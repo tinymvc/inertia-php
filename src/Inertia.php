@@ -22,6 +22,7 @@ use UnitEnum;
 use function array_key_exists;
 use function in_array;
 use function is_array;
+use function is_string;
 use function sprintf;
 
 /**
@@ -86,23 +87,15 @@ class Inertia implements InertiaAdapterContract
         }
     }
 
-    public function setVersion(Closure|string|int|null $version): void
-    {
-        $this->version = $version;
-    }
-
-    /**
-     * Official v3-compatible alias for setVersion().
-     */
     public function version(Closure|string|int|null $version): void
     {
-        $this->setVersion($version);
+        $this->version = $version;
     }
 
     public function getVersion(): string
     {
         $version = $this->version instanceof Closure
-            ? call($this->version)
+            ? ($this->version)()
             : $this->version;
 
         return (string) $version;
@@ -218,21 +211,11 @@ class Inertia implements InertiaAdapterContract
         return $this;
     }
 
-    public function encryptHistory(bool $encrypt = true): static
-    {
-        return $this->withEncryptedHistory($encrypt);
-    }
-
     public function withClearedHistory(bool $clear = true): static
     {
         $this->clearHistory = $clear;
 
         return $this;
-    }
-
-    public function clearHistory(bool $clear = true): static
-    {
-        return $this->withClearedHistory($clear);
     }
 
     /**
@@ -343,19 +326,19 @@ class Inertia implements InertiaAdapterContract
         return json(
             $page,
             flags: JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        )->withHeaders([
-                    'X-Inertia' => 'true',
-                    'Vary' => 'X-Inertia',
-                ]);
+        )->withHeaders(['Vary' => 'X-Inertia', 'X-Inertia' => 'true']);
     }
 
     public function forceRefresh(): Response
     {
-        return response('', 409, [
-            'X-Inertia-Location' => $this->request->getUrl(),
-            'X-Inertia-Version' => $this->getVersion(),
-            'Vary' => 'X-Inertia',
-        ]);
+        return new Response(
+            statusCode: 409,
+            headers: [
+                'X-Inertia-Location' => $this->request->getUrl(),
+                'X-Inertia-Version' => $this->getVersion(),
+                'Vary' => 'X-Inertia',
+            ]
+        );
     }
 
     public function location(string $url): Response
@@ -364,10 +347,10 @@ class Inertia implements InertiaAdapterContract
             return redirect($url);
         }
 
-        return response('', 409, [
-            'X-Inertia-Location' => $url,
-            'Vary' => 'X-Inertia',
-        ]);
+        return new Response(
+            statusCode: 409,
+            headers: ['X-Inertia-Location' => $url, 'Vary' => 'X-Inertia']
+        );
     }
 
     public function redirect(string $url, int $status = 302): Response
@@ -395,7 +378,8 @@ class Inertia implements InertiaAdapterContract
             }
         }
 
-        return redirect($url, $status)->withHeaders(['Vary' => 'X-Inertia']);
+        return redirect($url, $status)
+            ->withHeaders(['Vary' => 'X-Inertia']);
     }
 
     public function back(int $status = 302): Response

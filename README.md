@@ -57,6 +57,113 @@ Inertia::setRootElementId('portal');
 
 Your client-side `createInertiaApp()` configuration must use the same mount id.
 
+## Frontend setup
+
+This guide uses React with TypeScript and Vite, with Inertia v3 on the client.
+
+### Install packages
+
+```bash
+npm install @inertiajs/react react react-dom
+npm install -D @vitejs/plugin-react
+```
+
+```json
+// package.json
+{
+    "dependencies": {
+        "@inertiajs/react": "^3.0.0",
+        "react": "^19.1.1",
+        "react-dom": "^19.1.1"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-react": "^4.4.1"
+    }
+}
+```
+
+### Vite configuration
+
+```typescript
+// vite.config.ts
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    // ...your existing plugins (e.g. Tailwind, fullReload(...))
+  ],
+  // ...
+}));
+```
+
+Make sure the build writes its manifest to `public/build/.vite/manifest.json`
+(Vite's default with `build.manifest: true`), since the adapter hashes this file
+for [asset versioning](#asset-versioning).
+
+### Client entry point
+
+The entry file must match the one referenced in your root template's
+`@vite([...])` call (`app.tsx` in the example above).
+
+```typescript
+// app.tsx
+import { createInertiaApp } from "@inertiajs/react";
+import { createRoot } from "react-dom/client";
+
+import AppLayout from "@/layouts/AppLayout";
+
+interface PageComponent {
+  default: React.ComponentType<any> & {
+    layout?: (page: React.ReactNode) => React.ReactNode;
+  };
+}
+
+createInertiaApp({
+  resolve: async (name) => {
+    // Lazy import: each page becomes its own chunk (code splitting)
+    const pages = import.meta.glob<PageComponent>("./pages/**/*.tsx");
+    const resolver = pages[`./pages/${name}.tsx`];
+
+    if (!resolver) {
+      throw new Error(`Page not found: ${name}`);
+    }
+
+    const page = await resolver();
+
+    // Persistent default layout for every page
+    page.default.layout = (pageContent: React.ReactNode) => (
+      <AppLayout>{pageContent}</AppLayout>
+    );
+
+    return page;
+  },
+  setup({ el, App, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```
+
+The adapter emits the v3 initial page format (a JSON script element), which
+`@inertiajs/react` v3 reads by default, so no extra client configuration is
+needed.
+
+The component name passed to `Inertia::render('Users/Index')` maps to
+`./pages/Users/Index.tsx`.
+
+### Custom mount id
+
+If you use `@inertia('portal')` or `Inertia::setRootElementId('portal')`, pass
+the same id to the client:
+
+```typescript
+createInertiaApp({
+  id: "portal",
+  // ...
+});
+```
+
 ## Responses
 
 ```php
@@ -105,7 +212,7 @@ Regular closures are evaluated only when their prop survives partial-reload
 filtering:
 
 ```php
-return inertia('Users/Index', [
+return Inertia::render('Users/Index', [
     'users' => fn () => User::all(),
     'companies' => fn () => Company::all(),
 ]);
@@ -114,7 +221,7 @@ return inertia('Users/Index', [
 ### Optional and always
 
 ```php
-return inertia('Reports', [
+return Inertia::render('Reports', [
     // Excluded until explicitly requested with `only`.
     'details' => Inertia::optional(fn () => Report::details()),
 
@@ -132,7 +239,7 @@ Inertia v3 removed `lazy()` and `LazyProp`; use `optional()` instead.
 ### Deferred
 
 ```php
-return inertia('Dashboard', [
+return Inertia::render('Dashboard', [
     'permissions' => Inertia::defer(fn () => Permission::all()),
     'teams' => Inertia::defer(fn () => Team::all(), 'attributes'),
     'projects' => Inertia::defer(fn () => Project::all(), 'attributes'),
@@ -152,7 +259,7 @@ rescue slot:
 ### Merge
 
 ```php
-return inertia('Feed', [
+return Inertia::render('Feed', [
     // Append at the prop root.
     'tags' => Inertia::merge($tags),
 
@@ -176,7 +283,7 @@ required by the v3 protocol.
 ### Once
 
 ```php
-return inertia('Billing', [
+return Inertia::render('Billing', [
     'plans' => Inertia::once(fn () => Plan::all()),
     'rates' => Inertia::once(fn () => Rate::all())->until(3600),
     'roles' => Inertia::once(fn () => Role::all())->as('shared-roles'),
@@ -205,7 +312,7 @@ V3 prop types work inside nested arrays and closures, and partial reload
 headers support dot notation:
 
 ```php
-return inertia('Dashboard', [
+return Inertia::render('Dashboard', [
     'auth' => [
         'user' => request()->user(),
         'notifications' => Inertia::defer(fn () => Notification::all()),
@@ -268,24 +375,22 @@ to `page.flash` automatically.
 ## History
 
 ```php
-return inertia()
-    ->encryptHistory()
-    ->render('Account/Settings', $props);
+return Inertia::render('Account/Settings', $props)
+    ->withEncryptedHistory();
 
-return inertia()
-    ->clearHistory()
-    ->render('Auth/Login');
+return Inertia::render('Auth/Login')
+    ->withClearedHistory();
 ```
 
-`encryptHistory` and `clearHistory` are only included in the page object when
+`withEncryptedHistory` and `withClearedHistory` are only included in the page object when
 true, as required by Inertia v3.
 
 ## Redirects
 
 ```php
-return inertia()->redirect('/users');
-return inertia()->back();
-return inertia()->location('https://example.com');
+return Inertia::redirect('/users');
+return Inertia::back();
+return Inertia::location('https://example.com');
 ```
 
 Redirects after `PUT`, `PATCH`, and `DELETE` become `303` responses. External
@@ -295,7 +400,8 @@ the v3 `X-Inertia-Redirect` header.
 To preserve the fragment from the original URL across a redirect:
 
 ```php
-return inertia()->preserveFragment()->redirect('/article/new-slug');
+return Inertia::redirect('/article/new-slug')
+    ->preserveFragment();
 ```
 
 ## Asset versioning
@@ -315,12 +421,6 @@ Inertia::version(fn () => config('app.deploy_version'));
 
 On a mismatched Inertia `GET`, the adapter returns `409` with the current URL in
 `X-Inertia-Location` before resolving page props.
-
-## Testing
-
-```bash
-composer test
-```
 
 ## License
 

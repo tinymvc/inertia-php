@@ -4,7 +4,6 @@ namespace Inertia\Props;
 
 use Inertia\Contracts\PropsContract;
 use Spark\Contracts\Support\Arrayable;
-use function is_object;
 
 /**
  * The BaseProp class serves as a foundational implementation of the PropsContract, providing a way to create lazy-evaluated properties.
@@ -31,8 +30,8 @@ abstract class BaseProp implements PropsContract, \Stringable, Arrayable
      */
     public function resolve(): mixed
     {
-        return is_object($this->value) && is_callable($this->value)
-            ? call($this->value)
+        return $this->value instanceof \Closure
+            ? ($this->value)()
             : $this->value;
     }
 

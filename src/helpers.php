@@ -16,8 +16,8 @@ if (!function_exists('inertia')) {
         \BackedEnum|\UnitEnum|string|null $component = null,
         Arrayable|\Inertia\ProvidesInertiaProperties|array $props = []
     ): Inertia|Response {
-        /** @var \Inertia\Inertia $inertia The Inertia adapter instance */
-        $inertia = get(Inertia::class);
+        /** @var Inertia $inertia The Inertia adapter instance */
+        $inertia = app(Inertia::class);
 
         if ($component === null) {
             return $inertia;
