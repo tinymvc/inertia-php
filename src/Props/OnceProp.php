@@ -13,7 +13,7 @@ class OnceProp extends BaseProp
 
     public function __construct(callable $callback)
     {
-        parent::__construct($callback);
+        parent::__construct(\Closure::fromCallable($callback));
         $this->once = true;
     }
 }

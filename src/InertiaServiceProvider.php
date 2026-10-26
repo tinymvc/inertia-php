@@ -3,6 +3,7 @@
 namespace Inertia;
 
 use Spark\Foundation\Providers\ServiceProvider;
+use Spark\Http\Request;
 use Spark\Http\Routing\Route;
 use Spark\Http\Routing\Router;
 use Spark\View\Blade;
@@ -26,7 +27,16 @@ class InertiaServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(Inertia::class);
+        $inertia = null;
+
+        // Keep application configuration while replacing request-specific state
+        // when a test runner or persistent host dispatches another request.
+        $this->app->bind(Inertia::class, function (Request $request) use (&$inertia): Inertia {
+            $inertia ??= new Inertia($request);
+            $inertia->setRequest($request);
+
+            return $inertia;
+        });
 
         $this->app->make(Router::class)
             ->macro(

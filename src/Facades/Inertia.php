@@ -12,10 +12,10 @@ use Inertia\Inertia as BaseInertia;
  * It allows easy access to Inertia rendering methods without needing to instantiate the Inertia class directly.
  * 
  * @method static \Inertia\Inertia instance()
+ * @method static void setRequest(\Spark\Http\Request $request)
  * @method static void setRootView(string $view)
  * @method static void setRootElementId(string $id)
  * @method static void setBuildDirectory(string $build)
- * @method static void setVersion(\Closure|string|int|null $version)
  * @method static void version(\Closure|string|int|null $version)
  * @method static string getVersion()
  * @method static void share(array|string|\Spark\Contracts\Support\Arrayable|\Inertia\ProvidesInertiaProperties $key, mixed $value = null)
@@ -36,8 +36,6 @@ use Inertia\Inertia as BaseInertia;
  * @method static \Inertia\Inertia flash(\BackedEnum|\UnitEnum|string|array $key, mixed $value = null)
  * @method static \Inertia\Inertia withEncryptedHistory(bool $encrypt = true)
  * @method static \Inertia\Inertia withClearedHistory(bool $clear = true)
- * @method static \Inertia\Inertia encryptHistory(bool $encrypt = true)
- * @method static \Inertia\Inertia clearHistory(bool $clear = true)
  * @method static \Inertia\Inertia preserveFragment(bool $preserve = true)
  * @method static \Spark\Contracts\Support\Htmlable renderRootElement(string|array $page = '{}', ?string $id = null)
  * @method static mixed getShared(?string $key = null, mixed $default = null)

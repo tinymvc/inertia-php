@@ -4,6 +4,7 @@ namespace Inertia\Props;
 
 use Inertia\Contracts\ProvidesScrollMetadata;
 use InvalidArgumentException;
+use Spark\Http\Header;
 use Spark\Http\Request;
 use function array_key_exists;
 use function is_array;
@@ -49,7 +50,10 @@ class ScrollProp extends MergeProp
 
     public function configureMergeIntent(Request $request): static
     {
-        return $request->header('X-Inertia-Infinite-Scroll-Merge-Intent') === 'prepend'
+        $this->appendPaths = array_values(array_diff($this->appendPaths, [$this->wrapper]));
+        $this->prependPaths = array_values(array_diff($this->prependPaths, [$this->wrapper]));
+
+        return $request->header(Header::X_INERTIA_INFINITE_SCROLL_MERGE_INTENT) === 'prepend'
             ? $this->prepend($this->wrapper)
             : $this->append($this->wrapper);
     }

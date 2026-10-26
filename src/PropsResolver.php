@@ -3,16 +3,21 @@
 namespace Inertia;
 
 use Closure;
-use Inertia\Props\AlwaysProp;
-use Inertia\Props\BaseProp;
-use Inertia\Props\DeferredProp;
-use Inertia\Props\MergeProp;
-use Inertia\Props\OnceProp;
-use Inertia\Props\OptionalProp;
-use Inertia\Props\ScrollProp;
+use JsonSerializable;
+use Inertia\Props\{
+    AlwaysProp,
+    BaseProp,
+    DeferredProp,
+    MergeProp,
+    OnceProp,
+    OptionalProp,
+    ScrollProp
+};
 use Spark\Contracts\Support\Arrayable;
-use Spark\Http\Request;
+use Spark\Http\{Header, Request};
 use Spark\Http\Resources\JsonResource;
+use Spark\Http\Resources\MissingValue;
+use Spark\Support\Enumerable;
 use Throwable;
 use function in_array;
 use function is_array;
@@ -73,12 +78,13 @@ class PropsResolver
         protected Request $request,
         protected string $component
     ) {
-        $this->isInertia = (bool) $request->header('X-Inertia');
-        $this->isPartial = $request->header('X-Inertia-Partial-Component') === $component;
-        $this->only = $this->parseHeader('X-Inertia-Partial-Data');
-        $this->except = $this->parseHeader('X-Inertia-Partial-Except');
-        $this->resetProps = $this->parseHeader('X-Inertia-Reset') ?? [];
-        $this->loadedOnceProps = $this->parseHeader('X-Inertia-Except-Once-Props') ?? [];
+        $this->isInertia = (bool) $request->header(Header::X_INERTIA);
+        $this->isPartial = $this->isInertia
+            && $request->header(Header::X_INERTIA_PARTIAL_COMPONENT) === $component;
+        $this->only = $this->parseHeader(Header::X_INERTIA_PARTIAL_DATA);
+        $this->except = $this->parseHeader(Header::X_INERTIA_PARTIAL_EXCEPT);
+        $this->resetProps = $this->parseHeader(Header::X_INERTIA_RESET) ?? [];
+        $this->loadedOnceProps = $this->parseHeader(Header::X_INERTIA_EXCEPT_ONCE_PROPS) ?? [];
     }
 
     /**
@@ -86,6 +92,15 @@ class PropsResolver
      */
     public function resolve(array $shared, array $props): array
     {
+        $this->deferredProps = [];
+        $this->rescuedProps = [];
+        $this->mergeProps = [];
+        $this->prependProps = [];
+        $this->deepMergeProps = [];
+        $this->matchPropsOn = [];
+        $this->scrollProps = [];
+        $this->onceProps = [];
+
         $shared = $this->resolvePropertyProviders($shared);
         $this->sharedPropKeys = array_values(array_unique(array_map(
             static fn(string|int $key): string => explode('.', (string) $key, 2)[0],
@@ -106,6 +121,7 @@ class PropsResolver
     protected function resolveProps(array $props, string $prefix = '', bool $parentWasResolved = false): array
     {
         $props = $this->resolvePropertyProviders($props);
+        $isList = array_is_list($props);
         $result = [];
 
         foreach ($props as $key => $value) {
@@ -122,7 +138,7 @@ class PropsResolver
 
             $value = $this->resolveValue($prop, $path, $props);
 
-            if (in_array($path, $this->rescuedProps, true)) {
+            if ($value === MissingValue::Missing || in_array($path, $this->rescuedProps, true)) {
                 continue;
             }
 
@@ -136,6 +152,10 @@ class PropsResolver
                 $value = $this->resolveValue($prop, $path, $props);
             }
 
+            if ($value === MissingValue::Missing || in_array($path, $this->rescuedProps, true)) {
+                continue;
+            }
+
             $this->collectMetadata($prop, $path);
 
             $result[$key] = is_array($value)
@@ -143,7 +163,7 @@ class PropsResolver
                 : $value;
         }
 
-        return $result;
+        return $isList ? array_values($result) : $result;
     }
 
     protected function shouldIncludeInPartialResponse(
@@ -187,6 +207,7 @@ class PropsResolver
 
         if ($prop instanceof ScrollProp && $prop->shouldDefer()) {
             $this->deferredProps[$prop->getGroup()][] = $path;
+            $prop->configureMergeIntent($this->request);
             $this->collectMergeMetadata($prop, $path);
 
             return true;
@@ -222,7 +243,25 @@ class PropsResolver
                 );
             }
 
-            return JsonResource::normalize($value);
+            // Preserve wrappers and children until their own selection and metadata
+            // have been processed. Recursive normalization evaluates lazy props.
+            if ($this->isPropType($value) || is_array($value)) {
+                return $value;
+            }
+
+            if ($value instanceof Enumerable) {
+                return $value->all();
+            }
+
+            if ($value instanceof Arrayable && !$value instanceof JsonResource) {
+                return $value->toArray();
+            }
+
+            if ($value instanceof JsonSerializable && !$value instanceof JsonResource) {
+                return $value->jsonSerialize();
+            }
+
+            return JsonResource::normalize($value, $this->request);
         } catch (Throwable $exception) {
             if (!$shouldRescue) {
                 throw $exception;

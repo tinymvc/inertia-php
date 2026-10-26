@@ -5,7 +5,7 @@ namespace Inertia\Props;
 use Inertia\Contracts\ProvidesScrollMetadata;
 use InvalidArgumentException;
 use Spark\Contracts\Support\Arrayable;
-use Spark\Utils\Paginator;
+use Spark\Paginator\Paginator;
 
 class ScrollMetadata implements Arrayable, ProvidesScrollMetadata
 {

@@ -6,17 +6,18 @@ use BackedEnum;
 use Closure;
 use Inertia\Contracts\InertiaAdapterContract;
 use Inertia\Contracts\ProvidesScrollMetadata;
-use Inertia\Props\AlwaysProp;
-use Inertia\Props\DeferredProp;
-use Inertia\Props\MergeProp;
-use Inertia\Props\OnceProp;
-use Inertia\Props\OptionalProp;
-use Inertia\Props\ScrollProp;
+use Inertia\Props\{
+    AlwaysProp,
+    DeferredProp,
+    MergeProp,
+    OnceProp,
+    OptionalProp,
+    ScrollProp
+};
 use InvalidArgumentException;
 use Spark\Contracts\Support\Arrayable;
 use Spark\Foundation\Application;
-use Spark\Http\Request;
-use Spark\Http\Response;
+use Spark\Http\{Header, Request, Response};
 use Spark\Support\HtmlString;
 use UnitEnum;
 use function array_key_exists;
@@ -62,6 +63,19 @@ class Inertia implements InertiaAdapterContract
     public static function instance(): Inertia
     {
         return Application::$app->get(Inertia::class);
+    }
+
+    /** Rebind a reused adapter without carrying page state into another request. */
+    public function setRequest(Request $request): void
+    {
+        if ($this->request === $request) {
+            return;
+        }
+
+        $this->request = $request;
+        $this->encryptHistory = false;
+        $this->clearHistory = false;
+        $this->preserveFragment = false;
     }
 
     public function setRootView(string $view): void
@@ -156,7 +170,7 @@ class Inertia implements InertiaAdapterContract
 
     public static function optional(callable $callback): OptionalProp
     {
-        return new OptionalProp($callback);
+        return new OptionalProp(Closure::fromCallable($callback));
     }
 
     public static function defer(
@@ -227,6 +241,8 @@ class Inertia implements InertiaAdapterContract
 
         if ($preserve) {
             $this->request->session()->flash(self::PRESERVE_FRAGMENT_SESSION_KEY, true);
+        } else {
+            $this->request->session()->getFlash(self::PRESERVE_FRAGMENT_SESSION_KEY);
         }
 
         return $this;
@@ -249,7 +265,7 @@ class Inertia implements InertiaAdapterContract
         $current = $this->request->session()->getFlash(self::FLASH_SESSION_KEY, []);
         $this->request->session()->flash(
             self::FLASH_SESSION_KEY,
-            [...is_array($current) ? $current : [], ...$key]
+            array_replace(is_array($current) ? $current : [], $key)
         );
 
         return $this;
@@ -277,7 +293,7 @@ class Inertia implements InertiaAdapterContract
             $props = [$props];
         }
 
-        $isInertiaRequest = (bool) $this->request->header('X-Inertia');
+        $isInertiaRequest = (bool) $this->request->header(Header::X_INERTIA);
 
         if ($isInertiaRequest && $this->request->isGet() && $this->hasVersionMismatch()) {
             return $this->forceRefresh();
@@ -307,12 +323,13 @@ class Inertia implements InertiaAdapterContract
             $page['clearHistory'] = true;
         }
 
-        if (
-            $this->preserveFragment
-            || $this->request->session()->getFlash(self::PRESERVE_FRAGMENT_SESSION_KEY, false)
-        ) {
+        $preserveFragment = $this->request->session()->getFlash(self::PRESERVE_FRAGMENT_SESSION_KEY, false);
+
+        if ($this->preserveFragment || $preserveFragment) {
             $page['preserveFragment'] = true;
         }
+
+        $this->preserveFragment = false;
 
         if ($flash = $this->pullFlashData()) {
             $page['flash'] = $flash;
@@ -320,13 +337,13 @@ class Inertia implements InertiaAdapterContract
 
         if (!$isInertiaRequest) {
             return view($this->rootView, compact('page'))
-                ->withHeaders(['Vary' => 'X-Inertia']);
+                ->withHeaders([Header::VARY => Header::X_INERTIA]);
         }
 
         return json(
             $page,
             flags: JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        )->withHeaders(['Vary' => 'X-Inertia', 'X-Inertia' => 'true']);
+        )->withHeaders([Header::VARY => Header::X_INERTIA, Header::X_INERTIA => 'true']);
     }
 
     public function forceRefresh(): Response
@@ -334,22 +351,22 @@ class Inertia implements InertiaAdapterContract
         return new Response(
             statusCode: 409,
             headers: [
-                'X-Inertia-Location' => $this->request->getUrl(),
-                'X-Inertia-Version' => $this->getVersion(),
-                'Vary' => 'X-Inertia',
+                Header::X_INERTIA_LOCATION => $this->request->getUrl(),
+                Header::X_INERTIA_VERSION => $this->getVersion(),
+                Header::VARY => Header::X_INERTIA,
             ]
         );
     }
 
     public function location(string $url): Response
     {
-        if (!$this->request->header('X-Inertia')) {
+        if (!$this->request->header(Header::X_INERTIA)) {
             return redirect($url);
         }
 
         return new Response(
             statusCode: 409,
-            headers: ['X-Inertia-Location' => $url, 'Vary' => 'X-Inertia']
+            headers: [Header::X_INERTIA_LOCATION => $url, Header::VARY => Header::X_INERTIA]
         );
     }
 
@@ -362,24 +379,24 @@ class Inertia implements InertiaAdapterContract
             $status = 303;
         }
 
-        if ($this->request->header('X-Inertia')) {
+        if ($this->request->header(Header::X_INERTIA)) {
             if ($this->isExternalUrl($url)) {
                 return $this->location($url);
             }
 
             if (
                 parse_url($url, PHP_URL_FRAGMENT) !== null
-                && $this->request->header('Purpose') !== 'prefetch'
+                && strtolower((string) $this->request->header(Header::PURPOSE, '')) !== 'prefetch'
             ) {
-                return response('', 409, [
-                    'X-Inertia-Redirect' => $url,
-                    'Vary' => 'X-Inertia',
+                return Response::make(statusCode: 409, headers: [
+                    Header::X_INERTIA_REDIRECT => $url,
+                    Header::VARY => Header::X_INERTIA,
                 ]);
             }
         }
 
         return redirect($url, $status)
-            ->withHeaders(['Vary' => 'X-Inertia']);
+            ->withHeaders([Header::VARY => Header::X_INERTIA]);
     }
 
     public function back(int $status = 302): Response
@@ -428,7 +445,7 @@ class Inertia implements InertiaAdapterContract
                 : $messages;
         }
 
-        if ($bag = $this->request->header('X-Inertia-Error-Bag')) {
+        if ($bag = $this->request->header(Header::X_INERTIA_ERROR_BAG)) {
             return (object) [$bag => (object) $resolved];
         }
 
@@ -454,7 +471,7 @@ class Inertia implements InertiaAdapterContract
 
     protected function hasVersionMismatch(): bool
     {
-        return (string) $this->request->header('X-Inertia-Version', '') !== $this->getVersion();
+        return (string) $this->request->header(Header::X_INERTIA_VERSION, '') !== $this->getVersion();
     }
 
     protected function isExternalUrl(string $url): bool

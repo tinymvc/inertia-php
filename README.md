@@ -4,7 +4,7 @@ A server-side [Inertia.js v3](https://inertiajs.com/docs/v3) adapter for
 [TinyMVC](https://github.com/tinymvc/tinycore). It implements client-side
 rendering only; SSR is intentionally not included.
 
-The adapter requires PHP 8.2 or newer and TinyCore 3.x.
+The adapter requires PHP 8.2 or newer and TinyCore 4.x.
 
 ## Installation
 
@@ -23,6 +23,12 @@ return [
 
 The provider registers the Inertia singleton, the `@inertia` Blade directive,
 and the `Route::inertia()` macro.
+
+When an application handles consecutive requests, the provider refreshes the
+adapter's request and clears page history flags while retaining root-view and
+asset-version configuration. Hosts that reuse an adapter directly should call
+`setRequest($request)` before handling a new request. Resolve user-specific shared
+data through closures using the current request; do not capture it at application boot.
 
 ## Root template
 
@@ -328,6 +334,9 @@ router.reload({ only: ['auth.notifications'] })
 For reusable prop objects, implement `ProvidesInertiaProperties` to contribute
 multiple props or `ProvidesInertiaProperty` to resolve one contextual value.
 Both are resolved at any nesting depth and receive the current TinyMVC request.
+Nested optional/deferred callbacks remain lazy, including inside collections and
+closures, and nested merge/once/scroll props retain their page metadata. Partial
+selection is applied only to Inertia visits with a matching component header.
 
 ### Infinite scroll
 
@@ -338,7 +347,7 @@ Both are resolved at any nesting depth and receive the current TinyMVC request.
 'posts' => Inertia::scroll($paginator),
 ```
 
-TinyMVC's `Spark\Utils\Paginator` is detected automatically. For a custom
+TinyMVC's `Spark\Paginator\Paginator` is detected automatically. For a custom
 paginator, provide metadata:
 
 ```php
@@ -375,11 +384,11 @@ to `page.flash` automatically.
 ## History
 
 ```php
-return Inertia::render('Account/Settings', $props)
-    ->withEncryptedHistory();
+return Inertia::withEncryptedHistory()
+    ->render('Account/Settings', $props);
 
-return Inertia::render('Auth/Login')
-    ->withClearedHistory();
+return Inertia::withClearedHistory()
+    ->render('Auth/Login');
 ```
 
 `withEncryptedHistory` and `withClearedHistory` are only included in the page object when
@@ -400,9 +409,12 @@ the v3 `X-Inertia-Redirect` header.
 To preserve the fragment from the original URL across a redirect:
 
 ```php
-return Inertia::redirect('/article/new-slug')
-    ->preserveFragment();
+return Inertia::preserveFragment()
+    ->redirect('/article/new-slug');
 ```
+
+The fragment flag is consumed by the next rendered page. Call
+`preserveFragment(false)` to cancel it before rendering or redirecting.
 
 ## Asset versioning
 
@@ -421,6 +433,27 @@ Inertia::version(fn () => config('app.deploy_version'));
 
 On a mismatched Inertia `GET`, the adapter returns `409` with the current URL in
 `X-Inertia-Location` before resolving page props.
+
+## Tests
+
+Install dependencies with `composer install`, then run the native Spark suite:
+
+```bash
+composer test
+php tests/run.php --testsuite Unit
+php tests/run.php --testsuite Feature
+php tests/run.php --filter PropsResolverTest
+```
+
+Unit tests cover prop wrappers, callback evaluation, nested selection and
+providers, merge/deferred/once/scroll metadata, exceptions, and shared data.
+Feature tests boot an isolated application with temporary views and storage to
+exercise HTML and JSON visits, provider/facade/helper integration, redirects,
+asset versions, escaping, resources, pagination, validation, flash, and request
+state isolation. No database, browser, or external service is required.
+
+These tests verify the PHP adapter against the installed TinyCore version;
+they do not replace browser integration tests with your application's Inertia client.
 
 ## License
 

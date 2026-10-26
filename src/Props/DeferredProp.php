@@ -18,7 +18,7 @@ class DeferredProp extends BaseProp
         protected string $group = 'default',
         protected bool $rescue = false
     ) {
-        parent::__construct($callback);
+        parent::__construct(\Closure::fromCallable($callback));
     }
 
     public function getGroup(): string
