@@ -12,18 +12,6 @@ The adapter requires PHP 8.2 or newer and TinyCore 4.x.
 composer require tinymvc/inertia-php
 ```
 
-Register the provider:
-
-```php
-// bootstrap/providers.php
-return [
-    \Inertia\InertiaServiceProvider::class,
-];
-```
-
-The provider registers the Inertia singleton, the `@inertia` Blade directive,
-and the `Route::inertia()` macro.
-
 When an application handles consecutive requests, the provider refreshes the
 adapter's request and clears page history flags while retaining root-view and
 asset-version configuration. Hosts that reuse an adapter directly should call
